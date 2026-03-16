@@ -54,14 +54,15 @@ class DictViewModel(app: Application) : AndroidViewModel(app) {
         _textFieldValue.value = newValue
         if (newValue.text != oldText) {
             searchJob?.cancel()
-            if (newValue.text.isBlank()) {
+            val searchText = newValue.text.trimEnd()
+            if (searchText.length < 2) {
                 _results.value = emptyList()
                 return
             }
             searchJob = viewModelScope.launch {
                 delay(100)
                 val searchResults = withContext(Dispatchers.IO) {
-                    db.search(newValue.text)
+                    db.search(searchText)
                 }
                 _results.value = searchResults
             }
