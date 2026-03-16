@@ -1,0 +1,21 @@
+*.iml
+.gradle
+/local.properties
+local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+
+# App build output
+app/build
+
+# Signing
+*.jks
+*.keystore
+signing.properties
+
+# OS
+Thumbs.db
