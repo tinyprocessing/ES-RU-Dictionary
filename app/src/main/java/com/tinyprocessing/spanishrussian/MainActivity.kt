@@ -39,6 +39,11 @@ class MainActivity : ComponentActivity() {
         setContent {
             SpanishRussianTheme {
                 val vm: DictViewModel = viewModel()
+
+                // Accept query from PopupTranslateActivity "Open in app"
+                val incomingQuery = remember { intent.getStringExtra("query") }
+                val openedFromPopup = remember { incomingQuery != null }
+
                 val textFieldValue by vm.textFieldValue.collectAsState()
                 val results by vm.results.collectAsState()
                 val favorites by vm.favorites.collectAsState()
@@ -52,6 +57,15 @@ class MainActivity : ComponentActivity() {
                 var subScreen by remember { mutableStateOf<Screen?>(null) }
                 var webUrl by remember { mutableStateOf("") }
                 var webTitle by remember { mutableStateOf("") }
+
+                // Pre-fill search + open keyboard when launched from popup
+                androidx.compose.runtime.LaunchedEffect(incomingQuery) {
+                    if (!incomingQuery.isNullOrBlank()) {
+                        vm.selectRecentSearch(incomingQuery)
+                        focusRequester.requestFocus()
+                        keyboardController?.show()
+                    }
+                }
 
                 val currentScreen = when {
                     subScreen == Screen.Web -> Screen.Web
