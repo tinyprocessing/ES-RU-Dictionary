@@ -98,7 +98,7 @@ fun AllRecentsScreen(
                         tint = Gray600,
                         modifier = Modifier.size(18.dp)
                     )
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(14.dp))
                     Text(
                         query,
                         style = MaterialTheme.typography.bodyLarge,

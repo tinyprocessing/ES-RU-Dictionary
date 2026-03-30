@@ -39,7 +39,6 @@ fun DetailScreen(
     onToggleFavorite: () -> Unit,
     onOpenWeb: ((String) -> Unit)? = null,
 ) {
-    // For Spanish words, look up the word itself; for Russian words, look up the first Spanish translation
     val webWord: String? = if (entry.lang == 1) {
         entry.word
     } else {
@@ -96,22 +95,22 @@ fun DetailScreen(
                 .padding(horizontal = 20.dp)
         ) {
             item {
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(
                     entry.word,
                     style = MaterialTheme.typography.headlineLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
                 Text(
                     if (entry.lang == 1) "Spanish" else "Russian",
                     style = MaterialTheme.typography.labelMedium,
                     color = Gray500,
                 )
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(20.dp))
 
                 Text(
-                    "Translations (${entry.translationLangLabel})",
+                    "TRANSLATIONS (${entry.translationLangLabel})",
                     style = MaterialTheme.typography.labelMedium,
                     color = Gray500,
                 )
@@ -124,7 +123,7 @@ fun DetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 8.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(14.dp))
                         .background(Gray800)
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -134,7 +133,7 @@ fun DetailScreen(
                         style = MaterialTheme.typography.labelMedium,
                         color = Gray600,
                     )
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(14.dp))
                     Text(
                         translation.trim(),
                         style = MaterialTheme.typography.bodyLarge,

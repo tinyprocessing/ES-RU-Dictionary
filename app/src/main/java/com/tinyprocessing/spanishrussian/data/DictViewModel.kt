@@ -27,6 +27,12 @@ class DictViewModel(app: Application) : AndroidViewModel(app) {
     private val _results = MutableStateFlow<List<DictEntry>>(emptyList())
     val results: StateFlow<List<DictEntry>> = _results
 
+    private val _onlineResult = MutableStateFlow<MultitranResult?>(null)
+    val onlineResult: StateFlow<MultitranResult?> = _onlineResult
+
+    private val _onlineLoading = MutableStateFlow(false)
+    val onlineLoading: StateFlow<Boolean> = _onlineLoading
+
     private val _favorites = MutableStateFlow<List<DictEntry>>(emptyList())
     val favorites: StateFlow<List<DictEntry>> = _favorites
 
@@ -54,6 +60,8 @@ class DictViewModel(app: Application) : AndroidViewModel(app) {
         _textFieldValue.value = newValue
         if (newValue.text != oldText) {
             searchJob?.cancel()
+            _onlineResult.value = null
+            _onlineLoading.value = false
             val searchText = newValue.text.trimEnd()
             if (searchText.length < 2) {
                 _results.value = emptyList()
@@ -65,6 +73,19 @@ class DictViewModel(app: Application) : AndroidViewModel(app) {
                     db.search(searchText)
                 }
                 _results.value = searchResults
+
+                if (AppSettings.shouldFetchOnline(getApplication(), searchResults.isNotEmpty())) {
+                    _onlineLoading.value = true
+                    try {
+                        val result = withContext(Dispatchers.IO) {
+                            MultitranFetcher.fetch(searchText)
+                        }
+                        _onlineResult.value = if (result.entries.isNotEmpty()) result else null
+                    } catch (_: Exception) {
+                        _onlineResult.value = null
+                    }
+                    _onlineLoading.value = false
+                }
             }
         }
     }
@@ -74,6 +95,8 @@ class DictViewModel(app: Application) : AndroidViewModel(app) {
     fun clearQuery() {
         _textFieldValue.value = TextFieldValue("")
         _results.value = emptyList()
+        _onlineResult.value = null
+        _onlineLoading.value = false
     }
 
     fun selectAllText() {
@@ -130,12 +153,27 @@ class DictViewModel(app: Application) : AndroidViewModel(app) {
 
     fun selectRecentSearch(query: String) {
         _textFieldValue.value = TextFieldValue(query, selection = TextRange(query.length))
+        _onlineResult.value = null
+        _onlineLoading.value = false
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             val searchResults = withContext(Dispatchers.IO) {
                 db.search(query)
             }
             _results.value = searchResults
+
+            if (AppSettings.shouldFetchOnline(getApplication(), searchResults.isNotEmpty())) {
+                _onlineLoading.value = true
+                try {
+                    val result = withContext(Dispatchers.IO) {
+                        MultitranFetcher.fetch(query)
+                    }
+                    _onlineResult.value = if (result.entries.isNotEmpty()) result else null
+                } catch (_: Exception) {
+                    _onlineResult.value = null
+                }
+                _onlineLoading.value = false
+            }
         }
     }
 

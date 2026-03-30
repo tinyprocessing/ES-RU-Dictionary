@@ -25,11 +25,12 @@ import com.tinyprocessing.spanishrussian.ui.screens.AllFavoritesScreen
 import com.tinyprocessing.spanishrussian.ui.screens.AllRecentsScreen
 import com.tinyprocessing.spanishrussian.ui.screens.DetailScreen
 import com.tinyprocessing.spanishrussian.ui.screens.SearchScreen
+import com.tinyprocessing.spanishrussian.ui.screens.SettingsScreen
 import com.tinyprocessing.spanishrussian.ui.screens.WebScreen
 import com.tinyprocessing.spanishrussian.ui.theme.SpanishRussianTheme
 import java.net.URLEncoder
 
-private enum class Screen { Search, Detail, AllRecents, AllFavorites, Web }
+private enum class Screen { Search, Detail, AllRecents, AllFavorites, Web, Settings }
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,6 +52,8 @@ class MainActivity : ComponentActivity() {
                 val selectedEntry by vm.selectedEntry.collectAsState()
                 val favoritesCount by vm.favoritesCount.collectAsState()
                 val hasMoreFavorites by vm.hasMoreFavorites.collectAsState()
+                val onlineResult by vm.onlineResult.collectAsState()
+                val onlineLoading by vm.onlineLoading.collectAsState()
                 val focusRequester = remember { FocusRequester() }
                 val focusManager = LocalFocusManager.current
                 val keyboardController = LocalSoftwareKeyboardController.current
@@ -116,6 +119,11 @@ class MainActivity : ComponentActivity() {
                     label = "nav"
                 ) { screen ->
                     when (screen) {
+                        Screen.Settings -> {
+                            SettingsScreen(
+                                onBack = { subScreen = null },
+                            )
+                        }
                         Screen.Web -> {
                             WebScreen(
                                 url = webUrl,
@@ -191,6 +199,9 @@ class MainActivity : ComponentActivity() {
                                 onShowAllRecents = { subScreen = Screen.AllRecents },
                                 onShowAllFavorites = { subScreen = Screen.AllFavorites },
                                 onClearFavorites = { vm.clearFavorites() },
+                                onOpenSettings = { subScreen = Screen.Settings },
+                                onlineResult = onlineResult,
+                                onlineLoading = onlineLoading,
                                 focusRequester = focusRequester,
                             )
                         }

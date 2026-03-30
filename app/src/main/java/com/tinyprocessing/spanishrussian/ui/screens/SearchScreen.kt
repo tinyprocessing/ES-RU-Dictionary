@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.tinyprocessing.spanishrussian.R
 import com.tinyprocessing.spanishrussian.data.DictEntry
+import com.tinyprocessing.spanishrussian.data.MultitranResult
 import com.tinyprocessing.spanishrussian.ui.components.ConfirmDialog
 import com.tinyprocessing.spanishrussian.ui.theme.Gray400
 import com.tinyprocessing.spanishrussian.ui.theme.Gray500
@@ -73,6 +75,9 @@ fun SearchScreen(
     onShowAllRecents: () -> Unit,
     onShowAllFavorites: () -> Unit,
     onClearFavorites: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onlineResult: MultitranResult?,
+    onlineLoading: Boolean,
     focusRequester: FocusRequester,
 ) {
     Box(
@@ -99,23 +104,26 @@ fun SearchScreen(
                     onShowAllRecents = onShowAllRecents,
                     onShowAllFavorites = onShowAllFavorites,
                     onClearFavorites = onClearFavorites,
+                    onOpenSettings = onOpenSettings,
                 )
             } else {
                 SearchResults(
                     results = results,
                     onEntryClick = onEntryClick,
                     onToggleFavorite = onToggleFavorite,
+                    onlineResult = onlineResult,
+                    onlineLoading = onlineLoading,
                 )
             }
         }
 
-        // FAB - sits above keyboard
+        // FAB
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .imePadding()
                 .windowInsetsPadding(WindowInsets.navigationBars)
-                .padding(end = 20.dp, bottom = 20.dp)
+                .padding(end = 20.dp, bottom = 24.dp)
                 .size(56.dp)
                 .clip(CircleShape)
                 .background(White)
@@ -143,7 +151,7 @@ private fun SearchBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(Gray800)
             .padding(horizontal = 16.dp, vertical = 14.dp)
@@ -180,7 +188,7 @@ private fun SearchBar(
                         .focusRequester(focusRequester),
                 )
             }
-            // Paste button
+            Spacer(Modifier.width(8.dp))
             AnimatedVisibility(visible = textFieldValue.text.isEmpty(), enter = fadeIn(), exit = fadeOut()) {
                 IconButton(
                     onClick = {
@@ -201,17 +209,16 @@ private fun SearchBar(
                     )
                 }
             }
-            // Clear button
             AnimatedVisibility(visible = textFieldValue.text.isNotEmpty(), enter = fadeIn(), exit = fadeOut()) {
                 IconButton(
                     onClick = { onTextFieldValueChange(TextFieldValue("")) },
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(24.dp)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_close),
                         contentDescription = "Clear",
                         tint = Gray500,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
@@ -224,8 +231,10 @@ private fun SearchResults(
     results: List<DictEntry>,
     onEntryClick: (DictEntry) -> Unit,
     onToggleFavorite: (DictEntry) -> Unit,
+    onlineResult: MultitranResult?,
+    onlineLoading: Boolean,
 ) {
-    if (results.isEmpty()) {
+    if (results.isEmpty() && onlineResult == null && !onlineLoading) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
@@ -241,12 +250,67 @@ private fun SearchResults(
             modifier = Modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 96.dp)
         ) {
-            items(results, key = { it.id }) { entry ->
-                DictEntryRow(
-                    entry = entry,
-                    onClick = { onEntryClick(entry) },
-                    onFavClick = { onToggleFavorite(entry) },
-                )
+            if (results.isNotEmpty()) {
+                items(results, key = { it.id }) { entry ->
+                    DictEntryRow(
+                        entry = entry,
+                        onClick = { onEntryClick(entry) },
+                        onFavClick = { onToggleFavorite(entry) },
+                    )
+                }
+            }
+
+            // Online section
+            if (onlineLoading) {
+                item {
+                    Text(
+                        "Searching Multitran...",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Gray500,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                    )
+                }
+            }
+
+            if (onlineResult != null) {
+                item {
+                    if (results.isNotEmpty()) {
+                        HorizontalDivider(
+                            color = Gray800,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                        )
+                    }
+                    Text(
+                        "Multitran.com",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Gray500,
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
+                    )
+                }
+                onlineResult.entries.forEach { mtEntry ->
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp)
+                                .padding(bottom = 12.dp)
+                        ) {
+                            if (mtEntry.category.isNotBlank()) {
+                                Text(
+                                    mtEntry.category,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Gray600,
+                                )
+                                Spacer(Modifier.height(4.dp))
+                            }
+                            Text(
+                                mtEntry.translations.joinToString(", "),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -263,6 +327,7 @@ private fun IdleContent(
     onShowAllRecents: () -> Unit,
     onShowAllFavorites: () -> Unit,
     onClearFavorites: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     var showClearFavDialog by remember { mutableStateOf(false) }
 
@@ -295,7 +360,7 @@ private fun IdleContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onRecentClick(query) }
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
@@ -304,7 +369,7 @@ private fun IdleContent(
                         tint = Gray600,
                         modifier = Modifier.size(18.dp)
                     )
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(14.dp))
                     Text(
                         query,
                         style = MaterialTheme.typography.bodyLarge,
@@ -320,7 +385,7 @@ private fun IdleContent(
                         color = Gray500,
                         modifier = Modifier
                             .clickable { onShowAllRecents() }
-                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                            .padding(horizontal = 20.dp, vertical = 14.dp)
                     )
                 }
             }
@@ -328,6 +393,9 @@ private fun IdleContent(
 
         if (favorites.isNotEmpty()) {
             item {
+                if (recentSearches.isNotEmpty()) {
+                    Spacer(Modifier.height(4.dp))
+                }
                 SectionHeader(
                     title = "Favorites",
                     action = "Clear",
@@ -350,7 +418,7 @@ private fun IdleContent(
                         color = Gray500,
                         modifier = Modifier
                             .clickable { onShowAllFavorites() }
-                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                            .padding(horizontal = 20.dp, vertical = 14.dp)
                     )
                 }
             }
@@ -370,13 +438,31 @@ private fun IdleContent(
                             style = MaterialTheme.typography.headlineLarge,
                             color = Gray700,
                         )
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(12.dp))
                         Text(
                             "Start typing to search",
                             style = MaterialTheme.typography.bodyLarge,
                             color = Gray600,
                         )
                     }
+                }
+            }
+        }
+
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 32.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                IconButton(onClick = onOpenSettings) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_settings),
+                        contentDescription = "Settings",
+                        tint = Gray700,
+                        modifier = Modifier.size(22.dp),
+                    )
                 }
             }
         }
@@ -392,12 +478,12 @@ private fun SectionHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            title,
+            title.uppercase(),
             style = MaterialTheme.typography.labelMedium,
             color = Gray500,
         )
@@ -406,7 +492,9 @@ private fun SectionHeader(
                 action,
                 style = MaterialTheme.typography.labelMedium,
                 color = Gray600,
-                modifier = Modifier.clickable { onAction() }
+                modifier = Modifier
+                    .clickable { onAction() }
+                    .padding(vertical = 4.dp, horizontal = 8.dp)
             )
         }
     }
@@ -439,7 +527,7 @@ fun DictEntryRow(
                     color = Gray500,
                 )
             }
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
                 entry.translations,
                 style = MaterialTheme.typography.bodyMedium,
@@ -448,10 +536,10 @@ fun DictEntryRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(12.dp))
         IconButton(
             onClick = onFavClick,
-            modifier = Modifier.size(36.dp)
+            modifier = Modifier.size(40.dp)
         ) {
             Icon(
                 painter = painterResource(

@@ -46,8 +46,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.tinyprocessing.spanishrussian.data.AppSettings
 import com.tinyprocessing.spanishrussian.data.DictDatabase
 import com.tinyprocessing.spanishrussian.data.DictEntry
+import com.tinyprocessing.spanishrussian.data.MultitranFetcher
+import com.tinyprocessing.spanishrussian.data.MultitranResult
 import com.tinyprocessing.spanishrussian.ui.theme.Gray400
 import com.tinyprocessing.spanishrussian.ui.theme.Gray500
 import com.tinyprocessing.spanishrussian.ui.theme.Gray600
@@ -125,14 +128,30 @@ private fun PopupTranslateScreen(
     onDismiss: () -> Unit,
     onOpenInApp: () -> Unit,
 ) {
+    val context = LocalContext.current
     var results by remember { mutableStateOf<List<DictEntry>>(emptyList()) }
+    var onlineResult by remember { mutableStateOf<MultitranResult?>(null) }
     var loaded by remember { mutableStateOf(false) }
+    var onlineLoading by remember { mutableStateOf(false) }
 
     LaunchedEffect(query) {
         results = withContext(Dispatchers.IO) {
             db.search(query.trimEnd(), limit = 5)
         }
         loaded = true
+
+        if (AppSettings.shouldFetchOnline(context, results.isNotEmpty())) {
+            onlineLoading = true
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    MultitranFetcher.fetch(query.trimEnd())
+                }
+                onlineResult = if (result.entries.isNotEmpty()) result else null
+            } catch (_: Exception) {
+                onlineResult = null
+            }
+            onlineLoading = false
+        }
     }
 
     // Transparent backdrop — tap to dismiss
@@ -157,7 +176,7 @@ private fun PopupTranslateScreen(
                     interactionSource = remember { MutableInteractionSource() },
                 ) { /* block backdrop click */ },
         ) {
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp)) {
                 // Header row: word + actions
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -207,7 +226,7 @@ private fun PopupTranslateScreen(
                     }
                 }
 
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(16.dp))
 
                 if (!loaded) {
                     Text(
@@ -215,49 +234,86 @@ private fun PopupTranslateScreen(
                         color = Gray500,
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                } else if (results.isEmpty()) {
+                } else if (results.isEmpty() && onlineResult == null && !onlineLoading) {
                     Text(
                         "No translations found",
                         color = Gray500,
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 } else {
-                    val entry = results.first()
-                    val translations = entry.translationList.take(8)
+                    // Local results
+                    if (results.isNotEmpty()) {
+                        val entry = results.first()
+                        val translations = entry.translationList.take(8)
 
-                    // 2-column grid of translation chips
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                        maxItemsInEachRow = 2,
-                    ) {
-                        translations.forEach { translation ->
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(Gray800)
-                                    .padding(horizontal = 14.dp, vertical = 11.dp),
-                            ) {
-                                Text(
-                                    translation.trim(),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = White,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            maxItemsInEachRow = 2,
+                        ) {
+                            translations.forEach { translation ->
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(Gray800)
+                                        .padding(horizontal = 14.dp, vertical = 11.dp),
+                                ) {
+                                    Text(
+                                        translation.trim(),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = White,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                             }
+                        }
+
+                        if (entry.translationList.size > 8) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "+${entry.translationList.size - 8} more",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Gray600,
+                            )
                         }
                     }
 
-                    if (entry.translationList.size > 8) {
-                        Spacer(Modifier.height(6.dp))
+                    // Online results
+                    if (onlineLoading) {
+                        Spacer(Modifier.height(14.dp))
                         Text(
-                            "+${entry.translationList.size - 8} more",
+                            "Searching Multitran...",
+                            color = Gray500,
                             style = MaterialTheme.typography.labelMedium,
-                            color = Gray600,
                         )
+                    }
+                    if (onlineResult != null) {
+                        Spacer(Modifier.height(14.dp))
+                        Text(
+                            "Multitran.com",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Gray500,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        onlineResult!!.entries.take(3).forEach { onlineEntry ->
+                            if (onlineEntry.category.isNotBlank()) {
+                                Text(
+                                    onlineEntry.category,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Gray600,
+                                )
+                                Spacer(Modifier.height(2.dp))
+                            }
+                            Text(
+                                onlineEntry.translations.take(4).joinToString(", "),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = White,
+                            )
+                            Spacer(Modifier.height(4.dp))
+                        }
                     }
                 }
 
